@@ -2,6 +2,15 @@
 name = "podbean"
 version = "0.1.0"
 edition = "2024"
+authors = ["Ernestas Poskus @ernestas-poskus"]
+description = "An async Podbean client for connecting to the Podbean API."
+
+homepage = "https://github.com/ernestas-poskus/podbean"
+repository = "https://github.com/ernestas-poskus/podbean"
+license = "MIT"
+documentation = "https://docs.rs/podbean"
+keywords = ["api", "podcast", "client"]
+categories = ["podcast", "api-tools", "development-tools"]
 
 [dependencies]
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "hickory-dns", "gzip", "brotli", "deflate", "json"] }

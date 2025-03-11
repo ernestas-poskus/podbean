@@ -1,44 +1,35 @@
-//! # Podbean API Client
-//!
-//! A fully asynchronous Rust client for the [Podbean API](https://developers.podbean.com/podbean-api-docs/).
-//! This client handles authentication, token management, rate limiting, and provides
-//! a type-safe interface to interact with Podbean's API endpoints.
-//!
-//! ## Features
-//!
-//! - **Fully async**: Built on Tokio runtime and Reqwest for efficient HTTP requests
-//! - **OAuth2 support**: Handles authentication, token refresh, and authorization flows
-//! - **Rate limiting**: Built-in rate limiting to avoid hitting API limits
-//! - **Comprehensive API coverage**: Supports podcasts, episodes, media files, and more
-//! - **Proper error handling**: Custom error types with detailed information
-//!
-//! ## Example
-//!
-//! ```rust,no_run
-//! use podbean_client::PodbeanClient;
-//!
-//! #[tokio::main]
-//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     // Create a new client
-//!     let mut client = PodbeanClient::new("your_client_id", "your_client_secret");
-//!
-//!     // Generate an authorization URL for the user to visit
-//!     let auth_url = client.get_authorization_url(
-//!         "https://your-app.com/callback",
-//!         Some("state_for_csrf")
-//!     )?;
-//!     println!("Please visit this URL to authorize: {}", auth_url);
-//!
-//!     // After user authorization, exchange the code for a token
-//!     client.authorize("auth_code_from_callback", "https://your-app.com/callback").await?;
-//!
-//!     // Now you can use the API
-//!     let podcasts = client.list_podcasts(None, Some(10)).await?;
-//!     println!("You have {} podcasts", podcasts.count);
-//!
-//!     Ok(())
-//! }
-//! ```
+//! # Podbean an async Podbean client for connecting to the Podbean API.
+#![doc = include_str!("../README.md")]
+#![deny(
+    warnings,
+    bad_style,
+    dead_code,
+    improper_ctypes,
+    non_shorthand_field_patterns,
+    no_mangle_generic_items,
+    overflowing_literals,
+    path_statements,
+    patterns_in_fns_without_body,
+    unconditional_recursion,
+    unused,
+    unused_allocation,
+    unused_comparisons,
+    unused_parens,
+    while_true,
+    missing_debug_implementations,
+    missing_docs,
+    trivial_casts,
+    trivial_numeric_casts,
+    unused_extern_crates,
+    unused_import_braces,
+    unused_qualifications,
+    unused_results,
+    unreachable_pub,
+    deprecated,
+    unknown_lints,
+    unreachable_code,
+    unused_mut
+)]
 
 use reqwest::{Client, Response, StatusCode};
 use serde::Deserialize;
@@ -56,6 +47,7 @@ pub use types::{
     Episode, EpisodeListResponse, MediaItem, MediaListResponse, PodcastListResponse, TokenResponse,
 };
 
+/// Result type for Podbean API operations.
 pub type PodbeanResult<T> = Result<T, PodbeanError>;
 
 /// A client for interacting with the Podbean API.
@@ -112,7 +104,7 @@ impl RateLimiter {
             }
 
             // Remove the oldest request time
-            self.request_times.remove(0);
+            let _ = self.request_times.remove(0);
         }
 
         // Add the current time to the list
@@ -130,8 +122,8 @@ impl PodbeanClient {
     ///
     /// # Examples
     ///
-    /// ```
-    /// use podbean_client::PodbeanClient;
+    /// ```rust,no_run
+    /// use podbean::PodbeanClient;
     ///
     /// let client = PodbeanClient::new("your_client_id", "your_client_secret");
     /// ```
@@ -169,7 +161,7 @@ impl PodbeanClient {
     /// # Examples
     ///
     /// ```no_run
-    /// # use podbean_client::PodbeanClient;
+    /// # use podbean::PodbeanClient;
     /// # use tokio::runtime::Runtime;
     /// # let mut client = PodbeanClient::new("id", "secret");
     /// # let rt = Runtime::new().unwrap();
@@ -215,7 +207,7 @@ impl PodbeanClient {
     /// # Examples
     ///
     /// ```no_run
-    /// # use podbean_client::PodbeanClient;
+    /// # use podbean::PodbeanClient;
     /// # use tokio::runtime::Runtime;
     /// # let mut client = PodbeanClient::new("id", "secret");
     /// # let rt = Runtime::new().unwrap();
@@ -375,7 +367,7 @@ impl PodbeanClient {
     /// # Examples
     ///
     /// ```no_run
-    /// # use podbean_client::PodbeanClient;
+    /// # use podbean::PodbeanClient;
     /// # use tokio::runtime::Runtime;
     /// # let mut client = PodbeanClient::new("id", "secret");
     /// # let rt = Runtime::new().unwrap();
@@ -395,7 +387,8 @@ impl PodbeanClient {
 
         // First, get the presigned URL for upload
         let mut params = HashMap::new();
-        params.insert(
+
+        let _ = params.insert(
             "filename".to_string(),
             std::path::Path::new(file_path)
                 .file_name()
@@ -403,7 +396,7 @@ impl PodbeanClient {
                 .unwrap_or("unknown.mp3")
                 .to_string(),
         );
-        params.insert("content_type".to_string(), content_type.to_string());
+        let _ = params.insert("content_type".to_string(), content_type.to_string());
 
         let presigned: serde_json::Value = self
             .make_request(reqwest::Method::GET, "/files/uploadAuthorize", Some(params))
@@ -456,7 +449,7 @@ impl PodbeanClient {
     /// # Examples
     ///
     /// ```no_run
-    /// # use podbean_client::PodbeanClient;
+    /// # use podbean::PodbeanClient;
     /// # use tokio::runtime::Runtime;
     /// # let mut client = PodbeanClient::new("id", "secret");
     /// # let rt = Runtime::new().unwrap();
@@ -485,14 +478,14 @@ impl PodbeanClient {
         publish_timestamp: Option<i64>,
     ) -> PodbeanResult<String> {
         let mut params = HashMap::new();
-        params.insert("podcast_id".to_string(), podcast_id.to_string());
-        params.insert("title".to_string(), title.to_string());
-        params.insert("content".to_string(), content.to_string());
-        params.insert("media_key".to_string(), media_key.to_string());
-        params.insert("status".to_string(), status.to_string()); // publish, draft, schedule
+        let _ = params.insert("podcast_id".to_string(), podcast_id.to_string());
+        let _ = params.insert("title".to_string(), title.to_string());
+        let _ = params.insert("content".to_string(), content.to_string());
+        let _ = params.insert("media_key".to_string(), media_key.to_string());
+        let _ = params.insert("status".to_string(), status.to_string()); // publish, draft, schedule
 
         if let Some(timestamp) = publish_timestamp {
-            params.insert("publish_timestamp".to_string(), timestamp.to_string());
+            let _ = params.insert("publish_timestamp".to_string(), timestamp.to_string());
         }
 
         let response: serde_json::Value = self
@@ -519,7 +512,7 @@ impl PodbeanClient {
     /// # Examples
     ///
     /// ```no_run
-    /// # use podbean_client::PodbeanClient;
+    /// # use podbean::PodbeanClient;
     /// # use tokio::runtime::Runtime;
     /// # let mut client = PodbeanClient::new("id", "secret");
     /// # let rt = Runtime::new().unwrap();
@@ -532,7 +525,7 @@ impl PodbeanClient {
     /// ```
     pub async fn get_episode(&mut self, episode_id: &str) -> PodbeanResult<Episode> {
         let mut params = HashMap::new();
-        params.insert("id".to_string(), episode_id.to_string());
+        let _ = params.insert("id".to_string(), episode_id.to_string());
 
         self.make_request(reqwest::Method::GET, "/episodes/one", Some(params))
             .await
@@ -554,7 +547,7 @@ impl PodbeanClient {
     /// # Examples
     ///
     /// ```no_run
-    /// # use podbean_client::PodbeanClient;
+    /// # use podbean::PodbeanClient;
     /// # use tokio::runtime::Runtime;
     /// # let mut client = PodbeanClient::new("id", "secret");
     /// # let rt = Runtime::new().unwrap();
@@ -582,15 +575,15 @@ impl PodbeanClient {
         let mut params = HashMap::new();
 
         if let Some(id) = podcast_id {
-            params.insert("podcast_id".to_string(), id.to_string());
+            let _ = params.insert("podcast_id".to_string(), id.to_string());
         }
 
         if let Some(offset_val) = offset {
-            params.insert("offset".to_string(), offset_val.to_string());
+            let _ = params.insert("offset".to_string(), offset_val.to_string());
         }
 
         if let Some(limit_val) = limit {
-            params.insert("limit".to_string(), limit_val.to_string());
+            let _ = params.insert("limit".to_string(), limit_val.to_string());
         }
 
         self.make_request(reqwest::Method::GET, "/episodes", Some(params))
@@ -615,7 +608,7 @@ impl PodbeanClient {
     /// # Examples
     ///
     /// ```no_run
-    /// # use podbean_client::PodbeanClient;
+    /// # use podbean::PodbeanClient;
     /// # use tokio::runtime::Runtime;
     /// # let mut client = PodbeanClient::new("id", "secret");
     /// # let rt = Runtime::new().unwrap();
@@ -641,22 +634,22 @@ impl PodbeanClient {
         publish_timestamp: Option<i64>,
     ) -> PodbeanResult<()> {
         let mut params = HashMap::new();
-        params.insert("id".to_string(), episode_id.to_string());
+        let _ = params.insert("id".to_string(), episode_id.to_string());
 
         if let Some(title_val) = title {
-            params.insert("title".to_string(), title_val.to_string());
+            let _ = params.insert("title".to_string(), title_val.to_string());
         }
 
         if let Some(content_val) = content {
-            params.insert("content".to_string(), content_val.to_string());
+            let _ = params.insert("content".to_string(), content_val.to_string());
         }
 
         if let Some(status_val) = status {
-            params.insert("status".to_string(), status_val.to_string());
+            let _ = params.insert("status".to_string(), status_val.to_string());
         }
 
         if let Some(timestamp) = publish_timestamp {
-            params.insert("publish_timestamp".to_string(), timestamp.to_string());
+            let _ = params.insert("publish_timestamp".to_string(), timestamp.to_string());
         }
 
         let _: serde_json::Value = self
@@ -680,7 +673,7 @@ impl PodbeanClient {
     /// # Examples
     ///
     /// ```no_run
-    /// # use podbean_client::PodbeanClient;
+    /// # use podbean::PodbeanClient;
     /// # use tokio::runtime::Runtime;
     /// # let mut client = PodbeanClient::new("id", "secret");
     /// # let rt = Runtime::new().unwrap();
@@ -692,7 +685,7 @@ impl PodbeanClient {
     /// ```
     pub async fn delete_episode(&mut self, episode_id: &str) -> PodbeanResult<()> {
         let mut params = HashMap::new();
-        params.insert("id".to_string(), episode_id.to_string());
+        let _ = params.insert("id".to_string(), episode_id.to_string());
 
         let _: serde_json::Value = self
             .make_request(reqwest::Method::DELETE, "/episodes", Some(params))
@@ -716,7 +709,7 @@ impl PodbeanClient {
     /// # Examples
     ///
     /// ```no_run
-    /// # use podbean_client::PodbeanClient;
+    /// # use podbean::PodbeanClient;
     /// # use tokio::runtime::Runtime;
     /// # let mut client = PodbeanClient::new("id", "secret");
     /// # let rt = Runtime::new().unwrap();
@@ -737,11 +730,11 @@ impl PodbeanClient {
         let mut params = HashMap::new();
 
         if let Some(offset_val) = offset {
-            params.insert("offset".to_string(), offset_val.to_string());
+            let _ = params.insert("offset".to_string(), offset_val.to_string());
         }
 
         if let Some(limit_val) = limit {
-            params.insert("limit".to_string(), limit_val.to_string());
+            let _ = params.insert("limit".to_string(), limit_val.to_string());
         }
 
         self.make_request(reqwest::Method::GET, "/podcasts", Some(params))
@@ -763,7 +756,7 @@ impl PodbeanClient {
     /// # Examples
     ///
     /// ```no_run
-    /// # use podbean_client::PodbeanClient;
+    /// # use podbean::PodbeanClient;
     /// # use tokio::runtime::Runtime;
     /// # let mut client = PodbeanClient::new("id", "secret");
     /// # let rt = Runtime::new().unwrap();
@@ -784,11 +777,11 @@ impl PodbeanClient {
         let mut params = HashMap::new();
 
         if let Some(offset_val) = offset {
-            params.insert("offset".to_string(), offset_val.to_string());
+            let _ = params.insert("offset".to_string(), offset_val.to_string());
         }
 
         if let Some(limit_val) = limit {
-            params.insert("limit".to_string(), limit_val.to_string());
+            let _ = params.insert("limit".to_string(), limit_val.to_string());
         }
 
         self.make_request(reqwest::Method::GET, "/medias", Some(params))
@@ -812,8 +805,8 @@ impl PodbeanClient {
     ///
     /// # Examples
     ///
-    /// ```
-    /// # use podbean_client::PodbeanClient;
+    /// ```rust,no_run
+    /// # use podbean::PodbeanClient;
     /// let client = PodbeanClient::new("client_id", "client_secret");
     ///
     /// let auth_url = client.get_authorization_url(
@@ -830,16 +823,16 @@ impl PodbeanClient {
     ) -> PodbeanResult<String> {
         let mut url = Url::parse("https://api.podbean.com/v1/dialog/oauth")?;
 
-        url.query_pairs_mut()
+        let _ = url
+            .query_pairs_mut()
             .append_pair("response_type", "code")
             .append_pair("client_id", &self.client_id)
             .append_pair("redirect_uri", redirect_uri);
 
         if let Some(state_val) = state {
-            url.query_pairs_mut().append_pair("state", state_val);
+            let _ = url.query_pairs_mut().append_pair("state", state_val);
         }
 
         Ok(url.to_string())
     }
 }
-

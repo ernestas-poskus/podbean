@@ -27,11 +27,11 @@ pub struct TokenResponse {
 
 /// Authentication token with metadata.
 #[derive(Debug, Clone)]
-pub struct AuthToken {
+pub(crate) struct AuthToken {
     access_token: String,
     token_type: String,
     expires_in: u64,
-    scope: Option<String>,
+    // scope: Option<String>,
     refresh_token: Option<String>,
     created_at: Instant,
 }
@@ -40,7 +40,7 @@ impl AuthToken {
     /// Checks if the token is expired.
     ///
     /// Considers a token expired if it has less than 5 minutes of validity left.
-    pub fn is_expired(&self) -> bool {
+    pub(crate) fn is_expired(&self) -> bool {
         let now = Instant::now();
         let elapsed = now.duration_since(self.created_at);
 
@@ -49,17 +49,17 @@ impl AuthToken {
     }
 
     /// Gets the access token string.
-    pub fn access_token(&self) -> &str {
+    pub(crate) fn access_token(&self) -> &str {
         &self.access_token
     }
 
     /// Gets the token type.
-    pub fn token_type(&self) -> &str {
+    pub(crate) fn token_type(&self) -> &str {
         &self.token_type
     }
 
     /// Gets the refresh token, if any.
-    pub fn refresh_token(&self) -> Option<&str> {
+    pub(crate) fn refresh_token(&self) -> Option<&str> {
         self.refresh_token.as_deref()
     }
 }
@@ -70,7 +70,7 @@ impl From<TokenResponse> for AuthToken {
             access_token: response.access_token,
             token_type: response.token_type,
             expires_in: response.expires_in,
-            scope: response.scope,
+            // scope: response.scope,
             refresh_token: response.refresh_token,
             created_at: Instant::now(),
         }

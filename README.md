@@ -23,7 +23,7 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 
 ## Quick Start
 
-```rust
+```rust,no_run
 use podbean::PodbeanClient;
 
 #[tokio::main]
@@ -53,45 +53,65 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ### Uploading and Publishing a Podcast Episode
 
-```rust
-// Upload an audio file
-let media_key = client.upload_media("/path/to/episode.mp3", "audio/mpeg").await?;
+```rust,no_run
+use podbean::PodbeanClient;
 
-// Publish a new episode
-let episode_id = client.publish_episode(
-    "your_podcast_id",
-    "Episode Title",
-    "Episode description and show notes...",
-    &media_key,
-    "publish", // Can be "publish", "draft", or "schedule"
-    None, // Publish immediately
-).await?;
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+  // Create a new client with your credentials
+  let mut client = PodbeanClient::new("your_client_id", "your_client_secret");
 
-println!("Published new episode with ID: {}", episode_id);
+  // Upload an audio file
+  let media_key = client.upload_media("/path/to/episode.mp3", "audio/mpeg").await?;
+
+  // Publish a new episode
+  let episode_id = client.publish_episode(
+      "your_podcast_id",
+      "Episode Title",
+      "Episode description and show notes...",
+      &media_key,
+      "publish", // Can be "publish", "draft", or "schedule"
+      None, // Publish immediately
+  ).await?;
+
+  println!("Published new episode with ID: {}", episode_id);
+
+  Ok(())
+}
 ```
 
 ### Managing Episodes
 
-```rust
-// List episodes
-let episodes = client.list_episodes(Some("your_podcast_id"), None, Some(20)).await?;
-println!("Found {} episodes", episodes.count);
+```rust,no_run
+use podbean::PodbeanClient;
 
-// Get a specific episode
-let episode = client.get_episode("episode_id").await?;
-println!("Episode: {} (URL: {})", episode.title, episode.player_url);
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+  // Create a new client with your credentials
+  let mut client = PodbeanClient::new("your_client_id", "your_client_secret");
 
-// Update an episode
-client.update_episode(
-    "episode_id",
-    Some("Updated Title"),
-    Some("Updated description"),
-    None, // Keep current status
-    None, // Keep current publish time
-).await?;
+  // List episodes
+  let episodes = client.list_episodes(Some("your_podcast_id"), None, Some(20)).await?;
+  println!("Found {} episodes", episodes.count);
 
-// Delete an episode
-client.delete_episode("episode_id").await?;
+  // Get a specific episode
+  let episode = client.get_episode("episode_id").await?;
+  println!("Episode: {} (URL: {})", episode.title, episode.player_url);
+
+  // Update an episode
+  client.update_episode(
+      "episode_id",
+      Some("Updated Title"),
+      Some("Updated description"),
+      None, // Keep current status
+      None, // Keep current publish time
+  ).await?;
+
+  // Delete an episode
+  client.delete_episode("episode_id").await?;
+
+  Ok(())
+}
 ```
 
 ## API Reference
@@ -123,29 +143,6 @@ client.delete_episode("episode_id").await?;
 ## Error Handling
 
 The library uses a custom `PodbeanError` type that provides detailed information about what went wrong:
-
-```rust
-match client.list_episodes(Some("podcast_id"), None, None).await {
-    Ok(episodes) => {
-        // Handle successful response
-    },
-    Err(err) => match err {
-        PodbeanError::ApiError { code, message } => {
-            eprintln!("API returned error {}: {}", code, message);
-        },
-        PodbeanError::RateLimitError { retry_after } => {
-            if let Some(seconds) = retry_after {
-                eprintln!("Rate limited, retry after {} seconds", seconds);
-            }
-        },
-        PodbeanError::AuthError(msg) => {
-            eprintln!("Authentication error: {}", msg);
-        },
-        // Handle other error types
-        _ => eprintln!("Error: {}", err),
-    },
-}
-```
 
 ## License
 
