@@ -1,5 +1,17 @@
 # Podbean API Client
 
+[![CI](https://github.com/ernestas-poskus/podbean/actions/workflows/ci.yml/badge.svg)](https://github.com/ernestas-poskus/podbean/actions/workflows/ci.yml)
+[![Crates.io][crates-badge]][crates-url]
+[![Documentation][docs-badge]][docs-url]
+[![MIT licensed][mit-badge]][mit-url]
+
+[crates-badge]: https://img.shields.io/crates/v/podbean.svg
+[crates-url]: https://crates.io/crates/podbean
+[docs-badge]: https://docs.rs/podbean/badge.svg
+[docs-url]: https://docs.rs/podbean
+[mit-badge]: https://img.shields.io/badge/license-mit.svg
+[mit-url]: LICENSE
+
 A fully async Rust client for the [Podbean API](https://developers.podbean.com/podbean-api-docs/), built with Tokio and Reqwest.
 
 ## Features
