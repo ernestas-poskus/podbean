@@ -9,8 +9,8 @@ homepage = "https://github.com/ernestas-poskus/podbean"
 repository = "https://github.com/ernestas-poskus/podbean"
 license = "MIT"
 documentation = "https://docs.rs/podbean"
-keywords = ["api", "podcast", "client"]
-categories = ["podcast", "api-tools", "development-tools"]
+keywords = ["api", "client"]
+categories = ["development-tools"]
 
 [dependencies]
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "hickory-dns", "gzip", "brotli", "deflate", "json"] }
