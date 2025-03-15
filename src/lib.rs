@@ -177,7 +177,7 @@ impl PodbeanClient {
     /// ```
     pub async fn authorize(&mut self, code: &str, redirect_uri: &str) -> PodbeanResult<()> {
         let params = [
-            ("grant_type", "authorization_code"),
+            ("grant_type", "client_credentials"),
             ("code", code),
             ("redirect_uri", redirect_uri),
             ("client_id", &self.client_id),
