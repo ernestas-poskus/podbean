@@ -43,7 +43,8 @@ pub use error::PodbeanError;
 
 mod types;
 pub use types::{
-    Episode, EpisodeListResponse, MediaItem, MediaListResponse, PodcastListResponse, TokenResponse,
+    Episode, EpisodeListResponse, EpisodeStatus, EpisodeType, MediaFormat, MediaItem,
+    MediaListResponse, PodcastListResponse, TokenResponse,
 };
 
 /// Result type for Podbean API operations.
@@ -304,7 +305,7 @@ impl PodbeanClient {
     /// # Arguments
     ///
     /// * `file_path` - Path to the local file to upload
-    /// * `content_type` - MIME type of the file (e.g., "audio/mpeg" for MP3)
+    /// * `content_type` - MIME type of the file (e.g., "audio/mp3" for MP3)
     ///
     /// # Returns
     ///
@@ -314,32 +315,30 @@ impl PodbeanClient {
     /// # Examples
     ///
     /// ```no_run
-    /// # use podbean::PodbeanClient;
+    /// # use podbean::{PodbeanClient, MediaFormat};
     /// # use tokio::runtime::Runtime;
     /// # let mut client = PodbeanClient::new("id", "secret").unwrap();
     /// # let rt = Runtime::new().unwrap();
     /// # rt.block_on(async {
     /// # client.authorize("code", "redirect").await.unwrap();
-    /// let file_path = "/path/to/episode.mp3";
-    /// let media_key = client.upload_media(file_path, "audio/mpeg").await.unwrap();
+    /// let media_key = client.upload_media("episode.mp3".to_string(), vec![], MediaFormat::Mp3).await.unwrap();
     /// println!("Media uploaded with key: {}", media_key);
     /// # });
     /// ```
-    pub async fn upload_media(&self, file_path: &str, content_type: &str) -> PodbeanResult<String> {
+    pub async fn upload_media(
+        &self,
+        file_name: String,
+        file_content: Vec<u8>,
+        media_format: MediaFormat,
+    ) -> PodbeanResult<String> {
         self.ensure_token().await?;
 
         // First, get the presigned URL for upload
         let mut params = HashMap::new();
 
-        let _ = params.insert(
-            "filename".to_string(),
-            std::path::Path::new(file_path)
-                .file_name()
-                .and_then(|s| s.to_str())
-                .unwrap_or("unknown.mp3")
-                .to_string(),
-        );
-        let _ = params.insert("content_type".to_string(), content_type.to_string());
+        let _ = params.insert("filename".to_string(), file_name);
+        let _ = params.insert("content_type".to_string(), media_format.to_string());
+        let _ = params.insert("filesize".to_string(), file_content.len().to_string());
 
         let presigned: serde_json::Value = self
             .make_request(reqwest::Method::GET, "/files/uploadAuthorize", Some(params))
@@ -353,15 +352,10 @@ impl PodbeanClient {
             .as_str()
             .ok_or_else(|| PodbeanError::OtherError("Missing file_key in response".to_string()))?;
 
-        // Now upload the file to the presigned URL
-        let file_content = tokio::fs::read(file_path)
-            .await
-            .map_err(|e| PodbeanError::OtherError(format!("Failed to read file: {}", e)))?;
-
         let upload_response = self
             .client
             .put(presigned_url)
-            .header("Content-Type", content_type)
+            .header("Content-Type", media_format.to_string())
             .body(file_content)
             .send()
             .await?;
@@ -381,8 +375,9 @@ impl PodbeanClient {
     /// * `title` - The title of the episode
     /// * `content` - The description or show notes for the episode
     /// * `media_key` - The media key returned from `upload_media`
-    /// * `status` - Publication status: "publish", "draft", or "schedule"
-    /// * `publish_timestamp` - Unix timestamp for scheduled publication (required if status is "schedule")
+    /// * `status` - Publication status: "publish", "draft", or "future"
+    /// * `type` - Publication status: "public", "premium", "private"
+    /// * `publish_timestamp` - The publishing timestamp of an episode. The episode will be listed based on its publishing time, from New to Old by default. If it is not set, the "current time" will be set as its publishing time.
     ///
     /// # Returns
     ///
@@ -392,7 +387,7 @@ impl PodbeanClient {
     /// # Examples
     ///
     /// ```no_run
-    /// # use podbean::PodbeanClient;
+    /// # use podbean::{PodbeanClient, EpisodeStatus, EpisodeType};
     /// # use tokio::runtime::Runtime;
     /// # let mut client = PodbeanClient::new("id", "secret").unwrap();
     /// # let rt = Runtime::new().unwrap();
@@ -404,20 +399,23 @@ impl PodbeanClient {
     ///     "My New Episode",
     ///     "Episode description and show notes...",
     ///     &media_key,
-    ///     "publish", // Publish immediately
+    ///     EpisodeStatus::Draft,
+    ///     EpisodeType::Public,
     ///     None,
     /// ).await.unwrap();
     ///
     /// println!("Episode published with ID: {}", episode_id);
     /// # });
     /// ```
+    #[allow(clippy::too_many_arguments)]
     pub async fn publish_episode(
         &self,
         podcast_id: &str,
         title: &str,
         content: &str,
         media_key: &str,
-        status: &str,
+        status: EpisodeStatus,
+        episode_type: EpisodeType,
         publish_timestamp: Option<i64>,
     ) -> PodbeanResult<String> {
         let mut params = HashMap::new();
@@ -425,7 +423,8 @@ impl PodbeanClient {
         let _ = params.insert("title".to_string(), title.to_string());
         let _ = params.insert("content".to_string(), content.to_string());
         let _ = params.insert("media_key".to_string(), media_key.to_string());
-        let _ = params.insert("status".to_string(), status.to_string()); // publish, draft, schedule
+        let _ = params.insert("status".to_string(), status.to_string()); // publish, draft, future
+        let _ = params.insert("type".to_string(), episode_type.to_string()); // "public", "premium", "private"
 
         if let Some(timestamp) = publish_timestamp {
             let _ = params.insert("publish_timestamp".to_string(), timestamp.to_string());

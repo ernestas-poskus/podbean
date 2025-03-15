@@ -3,6 +3,7 @@
 //! This module defines the various data structures used to represent
 //! Podbean API resources and responses.
 
+use core::fmt;
 use serde::{Deserialize, Serialize};
 use std::time::Instant;
 
@@ -198,4 +199,68 @@ pub struct PodcastListResponse {
 
     /// List of podcasts
     pub podcasts: Vec<Podcast>,
+}
+
+/// Represents a episode type.
+#[derive(Debug)]
+pub enum EpisodeType {
+    /// Public episode
+    Public,
+    /// Premium episode
+    Premium,
+    /// Private episode
+    Private,
+}
+
+impl fmt::Display for EpisodeType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            EpisodeType::Public => write!(f, "public"),
+            EpisodeType::Premium => write!(f, "premium"),
+            EpisodeType::Private => write!(f, "private"),
+        }
+    }
+}
+
+/// Episode status
+#[derive(Debug)]
+pub enum EpisodeStatus {
+    /// Publish episode
+    Publish,
+    /// Draft episode
+    Draft,
+    /// Future episode
+    Future,
+}
+
+impl fmt::Display for EpisodeStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            EpisodeStatus::Publish => write!(f, "publish"),
+            EpisodeStatus::Draft => write!(f, "draft"),
+            EpisodeStatus::Future => write!(f, "future"),
+        }
+    }
+}
+
+/// Audio format for media files.
+/// - https://help.podbean.com/support/solutions/articles/25000005097-podbean-supported-file-formats-and-single-file-size-limit
+#[derive(Debug)]
+pub enum MediaFormat {
+    /// MP3 audio format
+    Mp3,
+    /// M4A audio format
+    M4a,
+    /// OGG audio format
+    Ogg,
+}
+
+impl fmt::Display for MediaFormat {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            MediaFormat::Mp3 => write!(f, "audio/mp3"),
+            MediaFormat::M4a => write!(f, "audio/m4a"),
+            MediaFormat::Ogg => write!(f, "audio/ogg"),
+        }
+    }
 }

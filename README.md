@@ -66,7 +66,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Uploading and Publishing a Podcast Episode
 
 ```rust,no_run
-use podbean::PodbeanClient;
+use podbean::{PodbeanClient, EpisodeStatus, EpisodeType, MediaFormat};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -74,7 +74,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   let mut client = PodbeanClient::new("your_client_id", "your_client_secret").unwrap();
 
   // Upload an audio file
-  let media_key = client.upload_media("/path/to/episode.mp3", "audio/mpeg").await?;
+  let media_key = client.upload_media("episode.mp3".to_string(), vec![], MediaFormat::Mp3).await?;
 
   // Publish a new episode
   let episode_id = client.publish_episode(
@@ -82,7 +82,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
       "Episode Title",
       "Episode description and show notes...",
       &media_key,
-      "publish", // Can be "publish", "draft", or "schedule"
+      EpisodeStatus::Draft,
+      EpisodeType::Public,
       None, // Publish immediately
   ).await?;
 
@@ -143,13 +144,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 - `client.list_episodes(podcast_id, offset, limit)` - List episodes
 - `client.get_episode(episode_id)` - Get a specific episode
-- `client.publish_episode(podcast_id, title, content, media_key, status, publish_timestamp)` - Publish a new episode
+- `client.publish_episode(podcast_id, title, content, media_key, EpisodeStatus::Draft, EpisodeType::Public, publish_timestamp)` - Publish a new episode
 - `client.update_episode(episode_id, title, content, status, publish_timestamp)` - Update an episode
 - `client.delete_episode(episode_id)` - Delete an episode
 
 ### Media Files
 
-- `client.upload_media(file_path, content_type)` - Upload a media file
+- `client.upload_media(file_name, file_bytes, content_type)` - Upload a media file
 - `client.list_media(offset, limit)` - List media files
 
 ## Error Handling
