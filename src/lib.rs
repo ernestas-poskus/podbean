@@ -34,8 +34,7 @@
 use reqwest::{Client, Response, StatusCode};
 use serde::Deserialize;
 use std::collections::HashMap;
-use std::time::{Duration, Instant};
-use tokio::time::sleep;
+use std::time::Duration;
 use types::AuthToken;
 use url::Url;
 
@@ -61,55 +60,6 @@ pub struct PodbeanClient {
     client_secret: String,
     base_url: String,
     token: Option<AuthToken>,
-    rate_limit: RateLimiter,
-}
-
-/// Internal utility for handling rate limiting.
-///
-/// Tracks request times and enforces waiting periods to avoid
-/// hitting API rate limits.
-#[derive(Debug, Clone)]
-struct RateLimiter {
-    requests_per_minute: u32,
-    request_times: Vec<Instant>,
-}
-
-impl RateLimiter {
-    /// Creates a new rate limiter with the specified requests per minute.
-    fn new(requests_per_minute: u32) -> Self {
-        RateLimiter {
-            requests_per_minute,
-            request_times: Vec::with_capacity(requests_per_minute as usize),
-        }
-    }
-
-    /// Waits if needed to comply with the rate limit.
-    ///
-    /// This method tracks request times and will delay the execution
-    /// if the rate limit has been reached.
-    async fn wait_if_needed(&mut self) {
-        let now = Instant::now();
-
-        // Remove request times older than 1 minute
-        self.request_times
-            .retain(|&time| now.duration_since(time) < Duration::from_secs(60));
-
-        // If we've reached the limit, wait until we can make another request
-        if self.request_times.len() >= self.requests_per_minute as usize {
-            let oldest = self.request_times[0];
-            let wait_time = Duration::from_secs(60) - now.duration_since(oldest);
-
-            if wait_time.as_secs() > 0 {
-                sleep(wait_time).await;
-            }
-
-            // Remove the oldest request time
-            let _ = self.request_times.remove(0);
-        }
-
-        // Add the current time to the list
-        self.request_times.push(Instant::now());
-    }
 }
 
 impl PodbeanClient {
@@ -127,20 +77,16 @@ impl PodbeanClient {
     ///
     /// let client = PodbeanClient::new("your_client_id", "your_client_secret");
     /// ```
-    pub fn new(client_id: &str, client_secret: &str) -> Self {
-        let client = Client::builder()
-            .timeout(Duration::from_secs(30))
-            .build()
-            .expect("Failed to create HTTP client");
+    pub fn new(client_id: &str, client_secret: &str) -> Result<Self, PodbeanError> {
+        let client = Client::builder().timeout(Duration::from_secs(30)).build()?;
 
-        Self {
+        Ok(Self {
             client,
             client_id: client_id.to_string(),
             client_secret: client_secret.to_string(),
             base_url: "https://api.podbean.com/v1".to_string(),
             token: None,
-            rate_limit: RateLimiter::new(60), // Default rate limit of 60 requests per minute
-        }
+        })
     }
 
     /// Authorize the client using an authorization code.
@@ -163,7 +109,7 @@ impl PodbeanClient {
     /// ```no_run
     /// # use podbean::PodbeanClient;
     /// # use tokio::runtime::Runtime;
-    /// # let mut client = PodbeanClient::new("id", "secret");
+    /// # let mut client = PodbeanClient::new("id", "secret").unwrap();
     /// # let rt = Runtime::new().unwrap();
     /// # rt.block_on(async {
     /// let code = "authorization_code"; // From callback URL
@@ -173,7 +119,7 @@ impl PodbeanClient {
     ///     Ok(_) => println!("Authorization successful!"),
     ///     Err(e) => eprintln!("Authorization failed: {}", e),
     /// }
-    /// # });
+    /// });
     /// ```
     pub async fn authorize(&mut self, code: &str, redirect_uri: &str) -> PodbeanResult<()> {
         let params = [
@@ -209,7 +155,7 @@ impl PodbeanClient {
     /// ```no_run
     /// # use podbean::PodbeanClient;
     /// # use tokio::runtime::Runtime;
-    /// # let mut client = PodbeanClient::new("id", "secret");
+    /// # let mut client = PodbeanClient::new("id", "secret").unwrap();
     /// # let rt = Runtime::new().unwrap();
     /// # rt.block_on(async {
     /// // Typically called automatically by the client when needed
@@ -259,10 +205,12 @@ impl PodbeanClient {
     }
 
     /// Ensures a valid token is available, refreshing if necessary.
-    async fn ensure_token(&mut self) -> PodbeanResult<()> {
+    async fn ensure_token(&self) -> PodbeanResult<()> {
         if let Some(token) = &self.token {
             if token.is_expired() {
-                self.refresh_token().await?;
+                return Err(PodbeanError::AuthError(
+                    "Refresh authentication token".to_string(),
+                ));
             }
             Ok(())
         } else {
@@ -275,7 +223,7 @@ impl PodbeanClient {
     /// This internal method handles token management, rate limiting,
     /// and error handling for all API requests.
     async fn make_request<T>(
-        &mut self,
+        &self,
         method: reqwest::Method,
         endpoint: &str,
         params: Option<HashMap<String, String>>,
@@ -284,7 +232,6 @@ impl PodbeanClient {
         T: for<'de> Deserialize<'de>,
     {
         self.ensure_token().await?;
-        self.rate_limit.wait_if_needed().await;
 
         let url = format!("{}{}", self.base_url, endpoint);
         let token = self.token.as_ref().unwrap();
@@ -369,7 +316,7 @@ impl PodbeanClient {
     /// ```no_run
     /// # use podbean::PodbeanClient;
     /// # use tokio::runtime::Runtime;
-    /// # let mut client = PodbeanClient::new("id", "secret");
+    /// # let mut client = PodbeanClient::new("id", "secret").unwrap();
     /// # let rt = Runtime::new().unwrap();
     /// # rt.block_on(async {
     /// # client.authorize("code", "redirect").await.unwrap();
@@ -378,11 +325,7 @@ impl PodbeanClient {
     /// println!("Media uploaded with key: {}", media_key);
     /// # });
     /// ```
-    pub async fn upload_media(
-        &mut self,
-        file_path: &str,
-        content_type: &str,
-    ) -> PodbeanResult<String> {
+    pub async fn upload_media(&self, file_path: &str, content_type: &str) -> PodbeanResult<String> {
         self.ensure_token().await?;
 
         // First, get the presigned URL for upload
@@ -451,7 +394,7 @@ impl PodbeanClient {
     /// ```no_run
     /// # use podbean::PodbeanClient;
     /// # use tokio::runtime::Runtime;
-    /// # let mut client = PodbeanClient::new("id", "secret");
+    /// # let mut client = PodbeanClient::new("id", "secret").unwrap();
     /// # let rt = Runtime::new().unwrap();
     /// # rt.block_on(async {
     /// # client.authorize("code", "redirect").await.unwrap();
@@ -469,7 +412,7 @@ impl PodbeanClient {
     /// # });
     /// ```
     pub async fn publish_episode(
-        &mut self,
+        &self,
         podcast_id: &str,
         title: &str,
         content: &str,
@@ -514,7 +457,7 @@ impl PodbeanClient {
     /// ```no_run
     /// # use podbean::PodbeanClient;
     /// # use tokio::runtime::Runtime;
-    /// # let mut client = PodbeanClient::new("id", "secret");
+    /// # let mut client = PodbeanClient::new("id", "secret").unwrap();
     /// # let rt = Runtime::new().unwrap();
     /// # rt.block_on(async {
     /// # client.authorize("code", "redirect").await.unwrap();
@@ -523,7 +466,7 @@ impl PodbeanClient {
     /// println!("Listen URL: {}", episode.player_url);
     /// # });
     /// ```
-    pub async fn get_episode(&mut self, episode_id: &str) -> PodbeanResult<Episode> {
+    pub async fn get_episode(&self, episode_id: &str) -> PodbeanResult<Episode> {
         let mut params = HashMap::new();
         let _ = params.insert("id".to_string(), episode_id.to_string());
 
@@ -549,7 +492,7 @@ impl PodbeanClient {
     /// ```no_run
     /// # use podbean::PodbeanClient;
     /// # use tokio::runtime::Runtime;
-    /// # let mut client = PodbeanClient::new("id", "secret");
+    /// # let mut client = PodbeanClient::new("id", "secret").unwrap();
     /// # let rt = Runtime::new().unwrap();
     /// # rt.block_on(async {
     /// # client.authorize("code", "redirect").await.unwrap();
@@ -567,7 +510,7 @@ impl PodbeanClient {
     /// # });
     /// ```
     pub async fn list_episodes(
-        &mut self,
+        &self,
         podcast_id: Option<&str>,
         offset: Option<u32>,
         limit: Option<u32>,
@@ -610,7 +553,7 @@ impl PodbeanClient {
     /// ```no_run
     /// # use podbean::PodbeanClient;
     /// # use tokio::runtime::Runtime;
-    /// # let mut client = PodbeanClient::new("id", "secret");
+    /// # let mut client = PodbeanClient::new("id", "secret").unwrap();
     /// # let rt = Runtime::new().unwrap();
     /// # rt.block_on(async {
     /// # client.authorize("code", "redirect").await.unwrap();
@@ -626,7 +569,7 @@ impl PodbeanClient {
     /// # });
     /// ```
     pub async fn update_episode(
-        &mut self,
+        &self,
         episode_id: &str,
         title: Option<&str>,
         content: Option<&str>,
@@ -675,7 +618,7 @@ impl PodbeanClient {
     /// ```no_run
     /// # use podbean::PodbeanClient;
     /// # use tokio::runtime::Runtime;
-    /// # let mut client = PodbeanClient::new("id", "secret");
+    /// # let mut client = PodbeanClient::new("id", "secret").unwrap();
     /// # let rt = Runtime::new().unwrap();
     /// # rt.block_on(async {
     /// # client.authorize("code", "redirect").await.unwrap();
@@ -683,7 +626,7 @@ impl PodbeanClient {
     /// println!("Episode deleted successfully");
     /// # });
     /// ```
-    pub async fn delete_episode(&mut self, episode_id: &str) -> PodbeanResult<()> {
+    pub async fn delete_episode(&self, episode_id: &str) -> PodbeanResult<()> {
         let mut params = HashMap::new();
         let _ = params.insert("id".to_string(), episode_id.to_string());
 
@@ -711,7 +654,7 @@ impl PodbeanClient {
     /// ```no_run
     /// # use podbean::PodbeanClient;
     /// # use tokio::runtime::Runtime;
-    /// # let mut client = PodbeanClient::new("id", "secret");
+    /// # let mut client = PodbeanClient::new("id", "secret").unwrap();
     /// # let rt = Runtime::new().unwrap();
     /// # rt.block_on(async {
     /// # client.authorize("code", "redirect").await.unwrap();
@@ -723,7 +666,7 @@ impl PodbeanClient {
     /// # });
     /// ```
     pub async fn list_podcasts(
-        &mut self,
+        &self,
         offset: Option<u32>,
         limit: Option<u32>,
     ) -> PodbeanResult<PodcastListResponse> {
@@ -758,7 +701,7 @@ impl PodbeanClient {
     /// ```no_run
     /// # use podbean::PodbeanClient;
     /// # use tokio::runtime::Runtime;
-    /// # let mut client = PodbeanClient::new("id", "secret");
+    /// # let mut client = PodbeanClient::new("id", "secret").unwrap();
     /// # let rt = Runtime::new().unwrap();
     /// # rt.block_on(async {
     /// # client.authorize("code", "redirect").await.unwrap();
@@ -770,7 +713,7 @@ impl PodbeanClient {
     /// # });
     /// ```
     pub async fn list_media(
-        &mut self,
+        &self,
         offset: Option<u32>,
         limit: Option<u32>,
     ) -> PodbeanResult<MediaListResponse> {
@@ -807,7 +750,7 @@ impl PodbeanClient {
     ///
     /// ```rust,no_run
     /// # use podbean::PodbeanClient;
-    /// let client = PodbeanClient::new("client_id", "client_secret");
+    /// let client = PodbeanClient::new("client_id", "client_secret").unwrap();
     ///
     /// let auth_url = client.get_authorization_url(
     ///     "https://your-app.com/callback",

@@ -41,7 +41,7 @@ use podbean::PodbeanClient;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create a new client with your credentials
-    let mut client = PodbeanClient::new("your_client_id", "your_client_secret");
+    let mut client = PodbeanClient::new("your_client_id", "your_client_secret").unwrap();
 
     // Generate authorization URL for the user to visit
     let auth_url = client.get_authorization_url(
@@ -71,7 +71,7 @@ use podbean::PodbeanClient;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
   // Create a new client with your credentials
-  let mut client = PodbeanClient::new("your_client_id", "your_client_secret");
+  let mut client = PodbeanClient::new("your_client_id", "your_client_secret").unwrap();
 
   // Upload an audio file
   let media_key = client.upload_media("/path/to/episode.mp3", "audio/mpeg").await?;
@@ -100,7 +100,7 @@ use podbean::PodbeanClient;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
   // Create a new client with your credentials
-  let mut client = PodbeanClient::new("your_client_id", "your_client_secret");
+  let mut client = PodbeanClient::new("your_client_id", "your_client_secret").unwrap();
 
   // List episodes
   let episodes = client.list_episodes(Some("your_podcast_id"), None, Some(20)).await?;
