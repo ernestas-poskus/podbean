@@ -1,6 +1,6 @@
 [package]
 name = "podbean"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 authors = ["Ernestas Poskus @ernestas-poskus"]
 description = "An async Podbean client for connecting to the Podbean API."
