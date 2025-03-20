@@ -466,11 +466,18 @@ impl PodbeanClient {
     /// # });
     /// ```
     pub async fn get_episode(&self, episode_id: &str) -> PodbeanResult<Episode> {
-        let mut params = HashMap::new();
-        let _ = params.insert("id".to_string(), episode_id.to_string());
+        #[derive(Debug, Deserialize)]
+        struct EpisodeResponse {
+            episode: Episode,
+        }
 
-        self.make_request(reqwest::Method::GET, "/episodes/one", Some(params))
-            .await
+        self.make_request::<EpisodeResponse>(
+            reqwest::Method::GET,
+            &format!("/episodes/{}", episode_id),
+            None,
+        )
+        .await
+        .map(|r| r.episode)
     }
 
     /// Lists episodes from a podcast.

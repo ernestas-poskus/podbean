@@ -123,10 +123,14 @@ pub struct MediaListResponse {
 }
 
 /// Represents a podcast episode.
-#[derive(Debug, Serialize, Deserialize)]
+/// https://developers.podbean.com/podbean-api-docs/#EpisodeObject
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct Episode {
     /// Unique identifier for the episode
     pub id: String,
+
+    /// Unique identifier for the podcast
+    pub podcast_id: String,
 
     /// Episode title
     pub title: String,
@@ -134,26 +138,30 @@ pub struct Episode {
     /// Episode description or show notes
     pub content: String,
 
-    /// Publication status (e.g., "published", "draft")
-    pub status: String,
-
-    /// URL to the episode page
-    pub post_url: String,
+    /// Media URL for the episode
+    pub media_url: String,
 
     /// URL to play the episode
     pub player_url: String,
 
-    /// When the episode was published
-    pub publish_time: String,
+    /// Permalink URL for the episode
+    pub permalink_url: String,
 
-    /// When the episode was created
-    pub created_at: String,
+    /// When the episode was published
+    pub publish_time: u64,
 
     /// Duration in seconds
-    pub duration: u64,
+    pub duration: Option<u64>,
 
-    /// URL to download the episode audio
-    pub download_url: String,
+    /// Publication status (e.g., "published", "draft")
+    pub status: String,
+
+    /// Type of episode (e.g., "public", "premium")
+    #[serde(rename = "type")]
+    pub episode_type: String,
+
+    /// URL to the transcript
+    pub transcripts_url: Option<String>,
 }
 
 /// Response for a list of episodes.
