@@ -167,8 +167,8 @@ impl PodbeanClient {
     /// # });
     /// ```
     pub async fn refresh_token(&mut self) -> PodbeanResult<()> {
-        if let Some(token) = &self.token {
-            if let Some(refresh_token) = token.refresh_token() {
+        if let Some(token) = &self.token
+            && let Some(refresh_token) = token.refresh_token() {
                 let params = [
                     ("grant_type", "refresh_token"),
                     ("refresh_token", refresh_token),
@@ -185,7 +185,6 @@ impl PodbeanClient {
 
                 return self.handle_token_response(response).await;
             }
-        }
 
         Err(PodbeanError::AuthError(
             "No refresh token available".to_string(),
@@ -276,8 +275,8 @@ impl PodbeanClient {
 
         match response.text().await {
             Ok(text) => {
-                if let Ok(error_json) = serde_json::from_str::<serde_json::Value>(&text) {
-                    if let (Some(error), Some(message)) = (
+                if let Ok(error_json) = serde_json::from_str::<serde_json::Value>(&text)
+                    && let (Some(error), Some(message)) = (
                         error_json.get("error").and_then(|v| v.as_str()),
                         error_json.get("error_description").and_then(|v| v.as_str()),
                     ) {
@@ -286,7 +285,6 @@ impl PodbeanClient {
                             message: format!("{}: {}", error, message),
                         };
                     }
-                }
 
                 PodbeanError::ApiError {
                     code: status.as_u16(),
