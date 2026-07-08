@@ -17,9 +17,9 @@ A fully async Rust client for the [Podbean API](https://developers.podbean.com/p
 ## Features
 
 - **Fully async**: Built on Tokio runtime and Reqwest for efficient HTTP requests
-- **OAuth2 support**: Handles authentication, token refresh, and authorization flows
+- **OAuth2 support**: Handles authentication, token refresh, authorization code flows, and multi-podcast token endpoints
 - **Rate limiting**: Built-in rate limiting to avoid hitting API limits
-- **Comprehensive API coverage**: Supports podcasts, episodes, media files, and more
+- **Comprehensive API coverage**: Supports podcasts, episodes, media files, private members, analytics reports, and more
 - **Proper error handling**: Custom error types with detailed information
 - **Type-safe**: Strongly typed API responses with Serde
 
@@ -29,7 +29,7 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-podbean = "0.2.0"
+podbean = "0.3.0"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
 
@@ -135,6 +135,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 - `client.get_authorization_url(redirect_uri, state)` - Generate OAuth authorization URL
 - `client.authorize(code, redirect_uri)` - Exchange authorization code for token
 - `client.refresh_token()` - Refresh the access token when expired
+- `client.get_multiple_podcasts_token(podcast_id)` - Request per-podcast access tokens for multi-podcast accounts
 
 ### Podcasts
 
@@ -148,10 +149,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 - `client.update_episode(episode_id, title, content, status, publish_timestamp)` - Update an episode
 - `client.delete_episode(episode_id)` - Delete an episode
 
+### Private Members
+
+- `client.list_private_members(offset, limit)` - List private podcast members for the podcast
+
 ### Media Files
 
 - `client.upload_media(file_name, file_bytes, content_type)` - Upload a media file
 - `client.list_media(offset, limit)` - List media files
+
+### Analytics
+
+- `client.get_podcast_reports(podcast_id, year)` - Get podcast download report CSV URLs
+- `client.get_podcast_engagement_reports(podcast_id, year)` - Get podcast engagement report CSV URLs
+- `client.get_podcast_analytic_reports(podcast_id, types)` - Get structured analytics reports (followers, likes, comments, etc.)
 
 ## Error Handling
 
