@@ -1,0 +1,427 @@
+openapi: 3.1.0
+info:
+  title: Podbean API
+  version: v1
+  description: |
+    Podbean's HTTP API for managing podcasts, episodes, private members,
+    and analytics reports. Uses OAuth 2.0 with the client_credentials
+    grant (and a multi-podcast token endpoint for accounts that publish
+    several podcasts). Endpoint paths reflect those documented at
+    https://developers.podbean.com/podbean-api-docs/ and confirmed
+    against open-source Podbean clients.
+  contact:
+    name: Podbean Developer Documentation
+    url: https://developers.podbean.com/podbean-api-docs/
+servers:
+  - url: https://api.podbean.com
+    description: Podbean production API
+security:
+  - oauth2ClientCredentials: []
+  - accessTokenQuery: []
+tags:
+  - name: OAuth
+    description: Token issuance endpoints.
+  - name: Podcasts
+    description: List podcasts in the account.
+  - name: Episodes
+    description: List and inspect episodes.
+  - name: PrivateMembers
+    description: Manage private podcast members.
+  - name: Analytics
+    description: Per-podcast analytics and report downloads.
+paths:
+  /v1/oauth/token:
+    post:
+      tags: [OAuth]
+      operationId: getAccessToken
+      summary: Request an access token
+      description: |
+        OAuth 2.0 token endpoint. Use HTTP Basic with client_id /
+        client_secret and POST `grant_type=client_credentials`.
+      security:
+        - basicAuth: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [grant_type]
+              properties:
+                grant_type:
+                  type: string
+                  enum: [client_credentials, authorization_code, refresh_token]
+                code:
+                  type: string
+                redirect_uri:
+                  type: string
+                  format: uri
+                refresh_token:
+                  type: string
+      responses:
+        '200':
+          description: Access token issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessToken'
+  /v1/oauth/multiplePodcastsToken:
+    post:
+      tags: [OAuth]
+      operationId: getMultiplePodcastsToken
+      summary: Request per-podcast access tokens
+      description: |
+        Returns a map of per-podcast access tokens for accounts with
+        multiple podcasts under the same Podbean app.
+      security:
+        - basicAuth: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [grant_type]
+              properties:
+                grant_type:
+                  type: string
+                  enum: [client_credentials]
+                podcast_id:
+                  type: string
+      responses:
+        '200':
+          description: Per-podcast tokens
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MultiplePodcastsToken'
+  /v1/podcasts:
+    get:
+      tags: [Podcasts]
+      operationId: listPodcasts
+      summary: List podcasts
+      description: List the podcasts owned by the authenticated account.
+      parameters:
+        - $ref: '#/components/parameters/AccessTokenQuery'
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: A page of podcasts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                  offset:
+                    type: integer
+                  limit:
+                    type: integer
+                  has_more:
+                    type: boolean
+                  podcasts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Podcast'
+  /v1/episodes:
+    get:
+      tags: [Episodes]
+      operationId: listEpisodes
+      summary: List episodes
+      description: List episodes for the authenticated podcast.
+      parameters:
+        - $ref: '#/components/parameters/AccessTokenQuery'
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: A page of episodes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                  offset:
+                    type: integer
+                  limit:
+                    type: integer
+                  has_more:
+                    type: boolean
+                  episodes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Episode'
+  /v1/privateMembers:
+    get:
+      tags: [PrivateMembers]
+      operationId: listPrivateMembers
+      summary: List private members
+      description: List the private members on the authenticated podcast.
+      parameters:
+        - $ref: '#/components/parameters/AccessTokenQuery'
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: A page of private members
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  private_members:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PrivateMember'
+  /v1/analytics/podcastReports:
+    get:
+      tags: [Analytics]
+      operationId: getPodcastReports
+      summary: Get podcast download report CSV URLs
+      description: Returns download URLs (grouped by month) for podcast download CSV reports.
+      parameters:
+        - $ref: '#/components/parameters/AccessTokenQuery'
+        - in: query
+          name: podcast_id
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: year
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Map of months to one or more CSV URLs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportUrlMap'
+  /v1/analytics/podcastEngagementReports:
+    get:
+      tags: [Analytics]
+      operationId: getPodcastEngagementReports
+      summary: Get podcast engagement report CSV URLs
+      parameters:
+        - $ref: '#/components/parameters/AccessTokenQuery'
+        - in: query
+          name: podcast_id
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: year
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Map of months to one or more CSV URLs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportUrlMap'
+  /v1/analytics/podcastAnalyticReports:
+    get:
+      tags: [Analytics]
+      operationId: getPodcastAnalyticReports
+      summary: Get podcast analytic reports
+      description: Returns a structured analytics report (followers, likes, comments, total_episode_length) for a podcast.
+      parameters:
+        - $ref: '#/components/parameters/AccessTokenQuery'
+        - in: query
+          name: podcast_id
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: types
+          schema:
+            type: string
+            description: Comma-separated report types (e.g. `followers,likes,comments,total_episode_length`).
+      responses:
+        '200':
+          description: Analytics report payload
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: HTTP Basic for OAuth token requests (client_id / client_secret).
+    oauth2ClientCredentials:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: https://api.podbean.com/v1/oauth/token
+          scopes: {}
+    accessTokenQuery:
+      type: apiKey
+      in: query
+      name: access_token
+      description: |
+        Podbean accepts the OAuth bearer token as the `access_token`
+        query parameter on resource endpoints.
+  parameters:
+    AccessTokenQuery:
+      in: query
+      name: access_token
+      required: false
+      schema:
+        type: string
+      description: Access token issued by /v1/oauth/token (may also be sent via Authorization header).
+  schemas:
+    AccessToken:
+      type: object
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+        expires_in:
+          type: integer
+        scope:
+          type: string
+    MultiplePodcastsToken:
+      type: object
+      properties:
+        podcast_tokens:
+          type: array
+          items:
+            type: object
+            properties:
+              podcast_id:
+                type: string
+              access_token:
+                type: string
+              expires_in:
+                type: integer
+    Podcast:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        desc:
+          type: string
+        logo:
+          type: string
+          format: uri
+        website:
+          type: string
+          format: uri
+        category_name:
+          type: string
+        allow_episode_type:
+          type: array
+          items:
+            type: string
+        copyright:
+          type: string
+    Episode:
+      type: object
+      properties:
+        id:
+          type: string
+        podcast_id:
+          type: string
+        title:
+          type: string
+        content:
+          type: string
+        logo:
+          type: string
+          format: uri
+        media_url:
+          type: string
+          format: uri
+        player_url:
+          type: string
+          format: uri
+        permalink_url:
+          type: string
+          format: uri
+        publish_time:
+          type: integer
+          description: Unix timestamp.
+        duration:
+          type: integer
+        status:
+          type: string
+        type:
+          type: string
+          enum: [public, premium, private]
+        season_number:
+          type: integer
+        episode_number:
+          type: integer
+        apple_episode_type:
+          type: string
+    PrivateMember:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        status:
+          type: string
+        created_at:
+          type: integer
+    ReportUrlMap:
+      type: object
+      properties:
+        download_urls:
+          type: object
+          additionalProperties:
+            oneOf:
+              - type: string
+                format: uri
+              - type: array
+                items:
+                  type: string
+                  format: uri

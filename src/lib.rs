@@ -44,7 +44,8 @@ pub use error::PodbeanError;
 mod types;
 pub use types::{
     Episode, EpisodeListResponse, EpisodeStatus, EpisodeType, MediaFormat, MediaItem,
-    MediaListResponse, PodcastListResponse, TokenResponse,
+    MediaListResponse, MultiplePodcastsToken, Podcast, PodcastListResponse, PodcastToken,
+    PrivateMember, PrivateMemberListResponse, ReportUrl, ReportUrlMap, TokenResponse,
 };
 
 /// Result type for Podbean API operations.
@@ -667,7 +668,7 @@ impl PodbeanClient {
     /// let podcasts = client.list_podcasts(None, Some(10)).await.unwrap();
     /// println!("Found {} podcasts", podcasts.count);
     /// for podcast in podcasts.podcasts {
-    ///     println!("- {} ({})", podcast.title, podcast.podcast_id);
+    ///     println!("- {} ({})", podcast.title, podcast.id);
     /// }
     /// # });
     /// ```
@@ -783,5 +784,134 @@ impl PodbeanClient {
         }
 
         Ok(url.to_string())
+    }
+
+    /// Request per-podcast access tokens.
+    ///
+    /// Returns a map of per-podcast access tokens for accounts with
+    /// multiple podcasts under the same Podbean app.
+    ///
+    /// # Arguments
+    ///
+    /// * `podcast_id` - Optional podcast ID to retrieve token for
+    pub async fn get_multiple_podcasts_token(
+        &self,
+        podcast_id: Option<&str>,
+    ) -> PodbeanResult<MultiplePodcastsToken> {
+        let mut params = vec![("grant_type", "client_credentials")];
+        if let Some(pid) = podcast_id {
+            params.push(("podcast_id", pid));
+        }
+
+        let response = self
+            .client
+            .post("https://api.podbean.com/v1/oauth/multiplePodcastsToken")
+            .basic_auth(&self.client_id, Some(&self.client_secret))
+            .form(&params)
+            .send()
+            .await?;
+
+        if response.status().is_success() {
+            let token_response: MultiplePodcastsToken = response.json().await?;
+            Ok(token_response)
+        } else {
+            Err(self.handle_error_response(response).await)
+        }
+    }
+
+    /// Lists private members for the authenticated podcast.
+    ///
+    /// # Arguments
+    ///
+    /// * `offset` - Optional pagination offset
+    /// * `limit` - Optional number of private members to return
+    pub async fn list_private_members(
+        &self,
+        offset: Option<u32>,
+        limit: Option<u32>,
+    ) -> PodbeanResult<PrivateMemberListResponse> {
+        let mut params = HashMap::new();
+
+        if let Some(offset_val) = offset {
+            let _ = params.insert("offset".to_string(), offset_val.to_string());
+        }
+
+        if let Some(limit_val) = limit {
+            let _ = params.insert("limit".to_string(), limit_val.to_string());
+        }
+
+        self.make_request(reqwest::Method::GET, "/privateMembers", Some(params))
+            .await
+    }
+
+    /// Get podcast download report CSV URLs.
+    ///
+    /// # Arguments
+    ///
+    /// * `podcast_id` - The ID of the podcast
+    /// * `year` - The year for the report
+    pub async fn get_podcast_reports(
+        &self,
+        podcast_id: &str,
+        year: i32,
+    ) -> PodbeanResult<ReportUrlMap> {
+        let mut params = HashMap::new();
+        let _ = params.insert("podcast_id".to_string(), podcast_id.to_string());
+        let _ = params.insert("year".to_string(), year.to_string());
+
+        self.make_request(
+            reqwest::Method::GET,
+            "/analytics/podcastReports",
+            Some(params),
+        )
+        .await
+    }
+
+    /// Get podcast engagement report CSV URLs.
+    ///
+    /// # Arguments
+    ///
+    /// * `podcast_id` - The ID of the podcast
+    /// * `year` - The year for the report
+    pub async fn get_podcast_engagement_reports(
+        &self,
+        podcast_id: &str,
+        year: i32,
+    ) -> PodbeanResult<ReportUrlMap> {
+        let mut params = HashMap::new();
+        let _ = params.insert("podcast_id".to_string(), podcast_id.to_string());
+        let _ = params.insert("year".to_string(), year.to_string());
+
+        self.make_request(
+            reqwest::Method::GET,
+            "/analytics/podcastEngagementReports",
+            Some(params),
+        )
+        .await
+    }
+
+    /// Get podcast analytic reports.
+    ///
+    /// # Arguments
+    ///
+    /// * `podcast_id` - The ID of the podcast
+    /// * `types` - Optional comma-separated report types (e.g. "followers,likes,comments,total_episode_length")
+    pub async fn get_podcast_analytic_reports(
+        &self,
+        podcast_id: &str,
+        types: Option<&str>,
+    ) -> PodbeanResult<serde_json::Value> {
+        let mut params = HashMap::new();
+        let _ = params.insert("podcast_id".to_string(), podcast_id.to_string());
+        if let Some(t) = types {
+            let _ = params.insert("types".to_string(), t.to_string());
+        }
+
+        self.make_request(
+            reqwest::Method::GET,
+            "/analytics/podcastAnalyticReports",
+            Some(params),
+        )
+        .await
     }
 }
