@@ -168,23 +168,24 @@ impl PodbeanClient {
     /// ```
     pub async fn refresh_token(&mut self) -> PodbeanResult<()> {
         if let Some(token) = &self.token
-            && let Some(refresh_token) = token.refresh_token() {
-                let params = [
-                    ("grant_type", "refresh_token"),
-                    ("refresh_token", refresh_token),
-                    ("client_id", &self.client_id),
-                    ("client_secret", &self.client_secret),
-                ];
+            && let Some(refresh_token) = token.refresh_token()
+        {
+            let params = [
+                ("grant_type", "refresh_token"),
+                ("refresh_token", refresh_token),
+                ("client_id", &self.client_id),
+                ("client_secret", &self.client_secret),
+            ];
 
-                let response = self
-                    .client
-                    .post("https://api.podbean.com/v1/oauth/token")
-                    .form(&params)
-                    .send()
-                    .await?;
+            let response = self
+                .client
+                .post("https://api.podbean.com/v1/oauth/token")
+                .form(&params)
+                .send()
+                .await?;
 
-                return self.handle_token_response(response).await;
-            }
+            return self.handle_token_response(response).await;
+        }
 
         Err(PodbeanError::AuthError(
             "No refresh token available".to_string(),
@@ -279,12 +280,13 @@ impl PodbeanClient {
                     && let (Some(error), Some(message)) = (
                         error_json.get("error").and_then(|v| v.as_str()),
                         error_json.get("error_description").and_then(|v| v.as_str()),
-                    ) {
-                        return PodbeanError::ApiError {
-                            code: status.as_u16(),
-                            message: format!("{}: {}", error, message),
-                        };
-                    }
+                    )
+                {
+                    return PodbeanError::ApiError {
+                        code: status.as_u16(),
+                        message: format!("{}: {}", error, message),
+                    };
+                }
 
                 PodbeanError::ApiError {
                     code: status.as_u16(),
